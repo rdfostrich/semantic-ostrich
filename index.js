@@ -5,7 +5,9 @@ const {promisify} = require('util');
 
 const FOAF = 'http://xmlns.com/foaf/0.1/';
 const OWL = 'http://www.w3.org/2002/07/owl#';
+const EX = 'http://example.org/';
 const SAMEAS = OWL + 'sameAs';
+const BECOMES = EX + 'becomes'; // Like sameAs, but with temporal semantics
 
 if (!fs.existsSync('./data')) {
   fs.mkdirSync('./data');
@@ -41,8 +43,12 @@ async function ingestDummyData(store) {
   count += await store.append(1, [
     { subject: 'https://www.rubensworks.net/#me', predicate: FOAF + 'fullName', object: '"Ruben Taelman"', addition: true },
     { subject: 'http://www.rubensworks.net/#me', predicate: FOAF + 'name', object: '"Ruben Taelman"', addition: false },
-    { subject: 'http://www.rubensworks.net/#me', predicate: SAMEAS, object: 'https://www.rubensworks.net/#me', addition: true },
-    { subject: FOAF + 'name', predicate: SAMEAS, object: FOAF + 'fullName', addition: true },
+
+    //{ subject: 'http://www.rubensworks.net/#me', predicate: SAMEAS, object: 'https://www.rubensworks.net/#me', addition: true },
+    //{ subject: FOAF + 'name', predicate: SAMEAS, object: FOAF + 'fullName', addition: true },
+
+    { subject: 'http://www.rubensworks.net/#me', predicate: BECOMES, object: 'https://www.rubensworks.net/#me', addition: true },
+    { subject: FOAF + 'name', predicate: BECOMES, object: FOAF + 'fullName', addition: true },
   ]);
 
   console.log('Done, ingested ' + count + ' triples!');
@@ -117,7 +123,9 @@ async function querySame(store, uri, version) {
   if (!uri) {
     return [uri];
   }
-  let o = _.map(await store.searchTriplesVersionMaterialized(uri, SAMEAS, null, { version: version }), 'object');
-  let s = _.map(await store.searchTriplesVersionMaterialized(null, SAMEAS, uri, { version: version }), 'subject');
-  return _.uniqWith(o.concat(s).concat([uri]), _.isEqual);
+  let o1 = _.map(await store.searchTriplesVersionMaterialized(uri, SAMEAS, null, { version: version }), 'object');
+  let s1 = _.map(await store.searchTriplesVersionMaterialized(null, SAMEAS, uri, { version: version }), 'subject');
+  let o2 = _.map(await store.searchTriplesVersionMaterialized(uri, BECOMES, null, { version: version }), 'object');
+  let s2 = _.map(await store.searchTriplesVersionMaterialized(null, BECOMES, uri, { version: version }), 'subject');
+  return _.uniqWith(o1.concat(s1).concat(o2).concat(s2).concat([uri]), _.isEqual);
 }
