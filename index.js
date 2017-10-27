@@ -77,6 +77,9 @@ async function queryDummyVq(store) {
   console.log('Done querying!');
 }
 
+/**
+ * VM
+ */
 async function semanticSearchTriplesVersionMaterialized(store, s, p, o, options, allResultCombinations) {
   let combinationsData = await getQueryCombinations(store, s, p, o, options.version);
   let { combinations, ss, ps, os } = combinationsData;
@@ -88,6 +91,9 @@ async function semanticSearchTriplesVersionMaterialized(store, s, p, o, options,
   return await getQueryResultsCombinations(results, ss, ps, os, s, p, o, allResultCombinations);
 }
 
+/**
+ * VQ
+ */
 async function semanticSearchTriplesVersion(store, s, p, o, options, allResultCombinations) {
   let combinationsData = await getQueryCombinations(store, s, p, o);
   let { combinations, ss, ps, os } = combinationsData;
@@ -108,6 +114,11 @@ async function semanticSearchTriplesVersion(store, s, p, o, options, allResultCo
     }, {})).map((value) => { return _.merge(value.triple, _.omit(value, 'triple')); });
 }
 
+/**
+ * Retrieve all possible query combinations for the given query pattern.
+ * This will be done based on all samAs links in the store.
+ * The version param is optional.
+ */
 async function getQueryCombinations(store, s, p, o, version) {
   // Find same URIs for S, P and O
   let ss = await querySame(store, s, version);
@@ -132,6 +143,10 @@ async function getQueryCombinations(store, s, p, o, version) {
   };
 }
 
+/**
+ * If allResultCombinations is true, all combinations of results based on the given sameAs arrays will be calculated.
+ * If allResultCombinations is false, all results will be canonicalized to the given query pattern.
+ */
 async function getQueryResultsCombinations(results, ss, ps, os, s, p, o, allResultCombinations) {
   if (allResultCombinations) {
     // Add additional results for same URIs
@@ -168,6 +183,13 @@ async function getQueryResultsCombinations(results, ss, ps, os, s, p, o, allResu
   }
 }
 
+/**
+ * Retrieve an array of all the "same" URIs from the given URI.
+ * @param store The store.
+ * @param uri The URI
+ * @param version An optional version scope. If not given, all versions are taken into account.
+ * @return {Promise.<*>} An array of URIs.
+ */
 async function querySame(store, uri, version) {
   if (!uri) {
     return [uri];
