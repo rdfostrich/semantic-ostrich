@@ -23,9 +23,18 @@ ostrich.fromPath('./data/test.ostrich', false, async (error, store) => {
     await ingestDummyData(store);
   }
 
-  //await queryDummyVm(store);
+  console.log("------------------------------");
+  console.log("Dataset: ");
+  console.log("  V0: <http://www.rubensworks.net/#me> foaf:name \"Ruben Taelman\".");
+  console.log("  V1: <https://www.rubensworks.net/#me> foaf:name \"Ruben Taelman\".");
+  console.log("  V1: <http://www.rubensworks.net/#me> ex:becomes <https://www.rubensworks.net/#me>.");
+  console.log("------------------------------");
+
+  await queryDummyVm(store);
+  console.log("------------------------------");
   await queryDummyDm(store);
-  //await queryDummyVq(store);
+  console.log("------------------------------");
+  await queryDummyVq(store);
 
   store.close();
 });
@@ -62,30 +71,33 @@ async function ingestDummyData(store) {
 }
 
 async function queryDummyVm(store) {
-  console.log('Querying dummy data VM...');
+  console.log('*VM: <http://www.rubensworks.net/#me> ?p ?o @V1');
+  console.log((await store.searchTriplesVersionMaterialized('http://www.rubensworks.net/#me', null, null, { version: 1 })).map(tripleToString));
+  console.log("");
 
+  console.log('*S-VM: <http://www.rubensworks.net/#me> ?p ?o @V1');
   let triples = await semanticSearchTriplesVersionMaterialized(store, 'http://www.rubensworks.net/#me', null, null, { version: 1 }, false);
-  console.log(triples);
-
-  console.log('Done querying!');
+  console.log(triples.map(tripleToString));
 }
 
 async function queryDummyDm(store) {
-  console.log('Querying dummy data DM...');
+  console.log('*DM: <http://www.rubensworks.net/#me> ?p ?o @V0-V1');
+  console.log((await store.searchTriplesDeltaMaterialized('http://www.rubensworks.net/#me', null, null, { versionStart: 0, versionEnd: 1 })).map(tripleToString));
+  console.log("");
 
+  console.log('*S-DM: <http://www.rubensworks.net/#me> ?p ?o @V0-V1');
   let triples = await semanticSearchTriplesDeltaMaterialized(store, 'http://www.rubensworks.net/#me', null, null, { versionStart: 0, versionEnd: 1 });
-  console.log(triples);
-
-  console.log('Done querying!');
+  console.log(triples.map(tripleToString));
 }
 
 async function queryDummyVq(store) {
-  console.log('Querying dummy data VQ...');
+  console.log('*VQ: <http://www.rubensworks.net/#me> ?p ?o');
+  console.log((await store.searchTriplesVersion('http://www.rubensworks.net/#me', null, null, {})).map(tripleToString));
+  console.log("");
 
-  let triples = await semanticSearchTriplesDeltaMaterialized(store, 'http://www.rubensworks.net/#me', null, null, {}, false);
-  console.log(triples);
-
-  console.log('Done querying!');
+  console.log('*S-VQ: <http://www.rubensworks.net/#me> ?p ?o');
+  let triples = await semanticSearchTriplesVersion(store, 'http://www.rubensworks.net/#me', null, null, {}, false);
+  console.log(triples.map(tripleToString));
 }
 
 /**
@@ -262,5 +274,19 @@ async function querySame(store, uri, version) {
     s2 = _.map(await store.searchTriplesVersion(null, BECOMES, uri), 'subject');
   }
   return _.uniqWith(o1.concat(s1).concat(o2).concat(s2).concat([uri]), _.isEqual);
+}
+
+function tripleToString(triple) {
+  if (triple.predicate === 'http://example.org/becomes') {
+    triple.predicate = 'ex:becomes';
+  }
+  var line = triple.subject + ' ' + triple.predicate + ' ' + triple.object + '.';
+  if (triple.addition === true || triple.addition === false) {
+    line = (triple.addition ? '+' : '-') + ' ' + line;
+  }
+  if (triple.versions) {
+    line += ' @' + triple.versions;
+  }
+  return line;
 }
 
