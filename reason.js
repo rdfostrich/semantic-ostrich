@@ -76,7 +76,6 @@ function tripleToString(triple) {
 }
 
 async function queryDummyVm(rules, store) {
-  // TODO: Thing is not inferred yet, add some kind of loop.
   let triples = await semanticSearchTriplesVersionMaterialized(rules, store, 'bobby', null, null, { version: 1 }, false);
   console.log(triples.map(tripleToString));
 }
@@ -105,6 +104,18 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
   // Get results from original pattern
   let triples = await store.searchTriplesVersionMaterialized(s, p, o, options);
 
+  // Infer triples from rules
+  let reasonTriples = triples;
+  while (reasonTriples.length > 0) {
+    const inferredTriples = await inferTriples(reasonTriples, appliedRules, store, options);
+    reasonTriples = inferredTriples;
+    triples = triples.concat(inferredTriples)
+  }
+
+  return triples;
+}
+
+async function inferTriples(triples, appliedRules, store, options) {
   // Get and materialize rules that can be used to infer new triples
   var inferableRules = [];
   triples.forEach((triple) => {
@@ -123,7 +134,6 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
       }
     }
   });
-  console.log(JSON.stringify(inferableRules, null, ' ')); // TODO
 
   // Filter rule conditions that have been fulfilled.
   inferableRules = inferableRules.map((rule) => {
@@ -137,15 +147,13 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
   });
 
   // Infer triples from rules
-  const inferedTriples = _.concat.apply(_, await Promise.all(inferableRules.map(async (rule) => {
+  return _.concat.apply(_, await Promise.all(inferableRules.map(async (rule) => {
     const bindings = await evaluateBgp(store, rule.from, options.version);
     return _.concat.apply(_, bindings.map((binding) => {
       const boundRule = bindRule(rule, binding);
       return boundRule.to;
     }));
   })));
-
-  return triples.concat(inferedTriples);
 }
 
 async function evaluateBgp(store, patterns, version) {
