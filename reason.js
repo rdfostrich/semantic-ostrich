@@ -83,23 +83,7 @@ async function queryDummyVm(rules, store) {
 async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, options) {
   const pattern = { subject: s || '?s', predicate: p || '?p', object: o || '?o' };
   // Collect all applicable rules to the pattern, and instantiate them for the pattern
-  const appliedRules = rules.reduce((acc, rule) => {
-    var bindings = [];
-    for (const rulePattern of rule.to) {
-      var binding;
-      if (!(binding = matchPatterns(rulePattern, pattern))) {
-        return acc;
-      }
-      bindings.push(binding);
-    }
-
-    var mergedBindings;
-    if (bindings.length > 0 && (mergedBindings = bindingsCompatible(bindings))) {
-      acc.push(bindRule(rule, mergedBindings));
-    }
-
-    return acc;
-  }, []);
+  const appliedRules = getApplicableRules(rules, pattern);
 
   // Get results from original pattern
   let triples = await store.searchTriplesVersionMaterialized(s, p, o, options);
@@ -113,6 +97,26 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
   }
 
   return triples;
+}
+
+function getApplicableRules(rules, pattern) {
+  return rules.reduce((acc, rule) => {
+    var bindings = [];
+    for (const rulePattern of rule.to) {
+      var binding;
+      if (!(binding = matchPatterns(rulePattern, pattern))) {
+        return acc;
+      }
+      bindings.push(binding);
+    }
+
+    let mergedBindings;
+    if (bindings.length > 0 && (mergedBindings = bindingsCompatible(bindings))) {
+      acc.push(bindRule(rule, mergedBindings));
+    }
+
+    return acc;
+  }, []);
 }
 
 async function inferTriples(triples, appliedRules, store, options) {
