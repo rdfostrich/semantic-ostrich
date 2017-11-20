@@ -34,7 +34,9 @@ ostrich.fromPath('./data/test-reason.ostrich', false, async (error, store) => {
     await ingestDummyData(store);
   }
 
-  await queryDummyVm(RULES, store);
+  //console.log((await queryDummyVm(RULES, store)).map(tripleToString));
+
+  console.log((await queryDummyVq(RULES, store)).map(tripleToString));
 
   store.close();
 });
@@ -76,8 +78,11 @@ function tripleToString(triple) {
 }
 
 async function queryDummyVm(rules, store) {
-  let triples = await semanticSearchTriplesVersionMaterialized(rules, store, 'bobby', null, null, { version: 1 }, false);
-  console.log(triples.map(tripleToString));
+  return await semanticSearchTriplesVersionMaterialized(rules, store, 'bobby', null, null, { version: 1 });
+}
+
+async function queryDummyVq(rules, store) {
+  return await semanticSearchTriplesVersion(rules, store, 'bobby', null, null);
 }
 
 async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, options) {
@@ -91,7 +96,28 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
   // Infer triples from rules
   let reasonTriples = triples;
   while (reasonTriples.length > 0) {
-    const inferredTriples = await inferTriples(reasonTriples, appliedRules, store, options);
+    const inferredTriples = await inferTriples(reasonTriples, appliedRules,
+      async (s, p, o) => await store.searchTriplesVersionMaterialized(s, p, o, options));
+    reasonTriples = inferredTriples;
+    triples = triples.concat(inferredTriples)
+  }
+
+  return triples;
+}
+
+async function semanticSearchTriplesVersion(rules, store, s, p, o, options) {
+  const pattern = { subject: s || '?s', predicate: p || '?p', object: o || '?o' };
+  // Collect all applicable rules to the pattern, and instantiate them for the pattern
+  const appliedRules = getApplicableRules(rules, pattern);
+
+  // Get results from original pattern
+  let triples = await store.searchTriplesVersion(s, p, o, options);
+
+  // Infer triples from rules
+  let reasonTriples = triples;
+  while (reasonTriples.length > 0) {
+    const inferredTriples = await inferTriples(reasonTriples, appliedRules,
+      async (s, p, o) => await store.searchTriplesVersion(s, p, o, options));
     reasonTriples = inferredTriples;
     triples = triples.concat(inferredTriples)
   }
@@ -119,7 +145,7 @@ function getApplicableRules(rules, pattern) {
   }, []);
 }
 
-async function inferTriples(triples, appliedRules, store, options) {
+async function inferTriples(triples, appliedRules, queryer) {
   // Get and materialize rules that can be used to infer new triples
   var inferableRules = [];
   triples.forEach((triple) => {
@@ -152,7 +178,7 @@ async function inferTriples(triples, appliedRules, store, options) {
 
   // Infer triples from rules
   return _.concat.apply(_, await Promise.all(inferableRules.map(async (rule) => {
-    const bindings = await evaluateBgp(store, rule.from, options.version);
+    const bindings = await evaluateBgp(rule.from, queryer);
     return _.concat.apply(_, bindings.map((binding) => {
       const boundRule = bindRule(rule, binding);
       return boundRule.to;
@@ -160,11 +186,11 @@ async function inferTriples(triples, appliedRules, store, options) {
   })));
 }
 
-async function evaluateBgp(store, patterns, version) {
+async function evaluateBgp(patterns, queryer) {
   if (patterns.length === 0) {
     return [];
   } else if (patterns.length === 1) {
-    return getPatternBindings(store, patterns[0], version);
+    return getPatternBindings(patterns[0], queryer);
   } else {
     throw new Error('BGPs with multiple patterns are not supported yet!');
     /*var counts = await Promise.all(patterns.map((pattern) =>
@@ -172,13 +198,14 @@ async function evaluateBgp(store, patterns, version) {
   }
 }
 
-async function getPatternBindings(store, pattern, version) {
-  let triples = await store.searchTriplesVersionMaterialized(pattern.subject, pattern.predicate, pattern.object, { version: version });
+async function getPatternBindings(pattern, queryer) {
+  let triples = await queryer(pattern.subject, pattern.predicate, pattern.object);
   return triples.map((triple) => {
     const binding = {};
     if (isVariable(pattern.subject)) binding[pattern.subject] = triple.subject;
     if (isVariable(pattern.predicate)) binding[pattern.predicate] = triple.predicate;
     if (isVariable(pattern.object)) binding[pattern.object] = triple.object;
+    if ('versions' in triple) binding.versions = triple.versions;
     return binding;
   });
 }
@@ -214,11 +241,13 @@ function bindRule(rule, bindings) {
 }
 
 function bindPattern(pattern, bindings) {
-  return {
+  const triple = {
     subject: bindings[pattern.subject] || pattern.subject,
     predicate: bindings[pattern.predicate] || pattern.predicate,
     object: bindings[pattern.object] || pattern.object,
-  }
+  };
+  if ('versions' in bindings) triple.versions = bindings.versions;
+  return triple;
 }
 
 function matchPatterns(p1, p2) {
