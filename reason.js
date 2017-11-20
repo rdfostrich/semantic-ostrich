@@ -35,8 +35,8 @@ ostrich.fromPath('./data/test-reason.ostrich', false, async (error, store) => {
   }
 
   //console.log((await queryDummyVm(RULES, store)).map(tripleToString));
-  console.log((await queryDummyDm(RULES, store)).map(tripleToString));
-  //console.log((await queryDummyVq(RULES, store)).map(tripleToString));
+  //console.log((await queryDummyDm(RULES, store)).map(tripleToString));
+  console.log((await queryDummyVq(RULES, store)).map(tripleToString));
 
   store.close();
 });
@@ -158,10 +158,33 @@ async function semanticSearchTriplesVersion(rules, store, s, p, o, options) {
     const inferredTriples = await inferTriples(reasonTriples, appliedRules,
       async (s, p, o) => await store.searchTriplesVersion(s, p, o, options));
     reasonTriples = inferredTriples;
-    triples = triples.concat(inferredTriples)
+    triples = concatTriples(triples, inferredTriples);
   }
 
   return triples;
+}
+
+function concatTriples(triples1, triples2) {
+  const triplesConcat = triples1.concat([]);
+  const toConcat = [];
+  // This will concat triples and removes duplicates
+  for (const triple2 of triples2) {
+    let matched = false;
+    for (const triple1 of triples1) {
+      if (matchPatterns(triple1, triple2)) {
+        matched = true;
+        // If triples have version annotations, merge them.
+        if (triple1.versions && triple2.versions) {
+          triple1.versions = _.uniq(triple1.versions.concat(triple2.versions));
+        }
+        break;
+      }
+    }
+    if (!matched) {
+      toConcat.push(triple2);
+    }
+  }
+  return triplesConcat.concat(toConcat);
 }
 
 function getApplicableRules(rules, pattern) {
