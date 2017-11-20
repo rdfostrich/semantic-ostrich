@@ -35,8 +35,8 @@ ostrich.fromPath('./data/test-reason.ostrich', false, async (error, store) => {
   }
 
   //console.log((await queryDummyVm(RULES, store)).map(tripleToString));
-
-  console.log((await queryDummyVq(RULES, store)).map(tripleToString));
+  console.log((await queryDummyDm(RULES, store)).map(tripleToString));
+  //console.log((await queryDummyVq(RULES, store)).map(tripleToString));
 
   store.close();
 });
@@ -62,6 +62,12 @@ async function ingestDummyData(store) {
     { subject: 'Cat', predicate: RDFS + 'subClassOf', object: 'Animal', addition: true },
     { subject: 'Animal', predicate: RDFS + 'subClassOf', object: 'Thing', addition: true }
   ]);
+  count += await store.append(2, [
+    // We make the type of 'bobby' more specific, so this won't result in a semantic deletion!
+    { subject: 'bobby', predicate: a, object: 'Cat', addition: false },
+    { subject: 'bobby', predicate: a, object: 'Tiger', addition: true },
+    { subject: 'Tiger', predicate: RDFS + 'subClassOf', object: 'Cat', addition: true },
+  ]);
 
   console.log('Done, ingested ' + count + ' triples!');
 }
@@ -79,6 +85,10 @@ function tripleToString(triple) {
 
 async function queryDummyVm(rules, store) {
   return await semanticSearchTriplesVersionMaterialized(rules, store, 'bobby', null, null, { version: 1 });
+}
+
+async function queryDummyDm(rules, store) {
+  return await semanticSearchTriplesDeltaMaterialized(rules, store, 'bobby', null, null, { versionStart: 0, versionEnd: 2 });
 }
 
 async function queryDummyVq(rules, store) {
@@ -100,6 +110,35 @@ async function semanticSearchTriplesVersionMaterialized(rules, store, s, p, o, o
       async (s, p, o) => await store.searchTriplesVersionMaterialized(s, p, o, options));
     reasonTriples = inferredTriples;
     triples = triples.concat(inferredTriples)
+  }
+
+  return triples;
+}
+
+async function semanticSearchTriplesDeltaMaterialized(rules, store, s, p, o, options) {
+  const pattern = { subject: s || '?s', predicate: p || '?p', object: o || '?o' };
+  // Collect all applicable rules to the pattern, and instantiate them for the pattern
+  const appliedRules = getApplicableRules(rules, pattern);
+
+  // Get results from original pattern
+  let triples = await store.searchTriplesDeltaMaterialized(s, p, o, options);
+
+  // Infer triples from rules
+  let reasonTriples = triples;
+  while (reasonTriples.length > 0) {
+    const inferredTriples = await inferTriples(reasonTriples, appliedRules,
+      async (s, p, o) => await store.searchTriplesVersionMaterialized(s, p, o, options));
+    reasonTriples = inferredTriples;
+
+    // Remove deletions that can still be inferred using the knowledge that is still available
+    triples = triples.filter((triple) => {
+      for (const inferredTriple of inferredTriples) {
+        if (!triple.addition && matchPatterns(triple, inferredTriple)) {
+          return false;
+        }
+      }
+      return true;
+    });
   }
 
   return triples;
@@ -206,6 +245,7 @@ async function getPatternBindings(pattern, queryer) {
     if (isVariable(pattern.predicate)) binding[pattern.predicate] = triple.predicate;
     if (isVariable(pattern.object)) binding[pattern.object] = triple.object;
     if ('versions' in triple) binding.versions = triple.versions;
+    if ('addition' in triple) binding.addition = triple.addition;
     return binding;
   });
 }
@@ -247,6 +287,7 @@ function bindPattern(pattern, bindings) {
     object: bindings[pattern.object] || pattern.object,
   };
   if ('versions' in bindings) triple.versions = bindings.versions;
+  if ('addition' in bindings) triple.addition = bindings.addition;
   return triple;
 }
 
