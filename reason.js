@@ -26,17 +26,17 @@ if (!fs.existsSync('./data/test-reason.ostrich')) {
 }
 
 async function run() {
-  const store = new SemanticOstrich('./data/test-reason.ostrich');
-  await store.init();
+  const store = new SemanticOstrich();
+  await store.init('./data/test-reason.ostrich');
 
   await ingestDummyData(store);
 
   console.log("S-VM:");
-  console.log((await store.semanticSearchTriplesVersionMaterialized(RULES, 'bobby', null, null, { version: 1 })).map(tripleToString));
+  console.log((await store.semanticSearchTriplesVersionMaterialized(RULES, 'bobby', null, null, { version: 1 })).map(SemanticOstrich.tripleToString));
   console.log("S-DM:");
-  console.log((await store.semanticSearchTriplesDeltaMaterialized(RULES, 'bobby', null, null, { versionStart: 0, versionEnd: 2 })).map(tripleToString));
+  console.log((await store.semanticSearchTriplesDeltaMaterialized(RULES, 'bobby', null, null, { versionStart: 0, versionEnd: 2 })).map(SemanticOstrich.tripleToString));
   console.log("S-VQ:");
-  console.log((await store.semanticSearchTriplesVersion(RULES, 'bobby', null, null)).map(tripleToString));
+  console.log((await store.semanticSearchTriplesVersion(RULES, 'bobby', null, null)).map(SemanticOstrich.tripleToString));
 
   await store.close();
 }
@@ -66,15 +66,4 @@ async function ingestDummyData(store) {
   ]);
 
   console.log('Done, ingested ' + count + ' triples!');
-}
-
-function tripleToString(triple) {
-  let line = triple.subject + ' ' + triple.predicate + ' ' + triple.object + '.';
-  if (triple.addition === true || triple.addition === false) {
-    line = (triple.addition ? '+' : '-') + ' ' + line;
-  }
-  if (triple.versions) {
-    line += ' @' + triple.versions;
-  }
-  return line;
 }
