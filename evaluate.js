@@ -80,37 +80,82 @@ const LEAF_CLASSES = Object.keys(SUBCLASSES).filter((clazz) => {
   return true;
 });
 
-const SUBJECT = 'http://dbpedia.org/resource/Doctor_Who_(series_9)';
+const REPLICATIONS = 5;
 const V = 88;
+const SUBJECTS = [
+  'http://dbpedia.org/resource/Palazzo_Parisio_(Valletta)',
+  'http://dbpedia.org/resource/Singaporean_general_election,_2015',
+  'http://dbpedia.org/resource/What_Do_You_Mean%3F',
+  'http://dbpedia.org/resource/Dancing_with_the_Stars_(U.S._season_21)',
+  'http://dbpedia.org/resource/Doctor_Who_(series_9)',
+  'http://dbpedia.org/resource/My_Little_Pony:_Equestria_Girls_%E2%80%93_Friendship_Games', // TODO: rm?
+  'http://dbpedia.org/resource/2015'
+]; // These are the subjects that have at least one inferrable rdf:type in version V
 
 async function run() {
   //await generateTypedDataset();
 
   //await compareDatasets();
 
-  const store = new SemanticOstrich();
-  await store.init('./data/evalrun-bearb-day-typed.ostrich', true);
+  await evaluate();
+}
+run().catch(console.error);
+
+async function time(func) {
+  const start = process.hrtime();
+  let ret;
+  for (let i = 0; i < REPLICATIONS; i++) {
+    ret = await func();
+  }
+  const elapsed = process.hrtime(start)[1] / 1000000;
+  return ((process.hrtime(start)[0] * 1000 + elapsed) / REPLICATIONS);// + " (" + ret + ")";
+}
+
+async function evaluate() {
+  const store1 = new SemanticOstrich();
+  await store1.init('./data/evalrun-bearb-day.ostrich', true);
+
+  const store2 = new SemanticOstrich();
+  await store2.init('./data/evalrun-bearb-day-typed.ostrich', true);
 
   // 31805/48914 = 65,02% => 34,98% triple savings
 
   // Warmup
   for (let i = 0; i < 10; i++) {
-    await store._store.searchTriplesVersionMaterialized(SUBJECT, RDF + 'type', null, { version: V });
+    await store1._store.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
+    await store2._store.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
   }
 
-  console.log("VM:");
-  console.time('vm');
-  console.log((await store._store.searchTriplesVersionMaterialized(SUBJECT, RDF + 'type', null, { version: V })).map(SemanticOstrich.tripleToString));
-  console.timeEnd('vm');
+  // For when we want to query ALL typed subjects
+  /*const typedResources = _.uniq((await store1._store.searchTriplesVersion(null, RDF + 'type', null))
+    .map((triple) => triple.subject));
+  console.log(typedResources.length);
+  */
 
-  console.log("S-VM:");
-  console.time('svm');
-  console.log((await store.semanticSearchTriplesVersionMaterialized(RULES, SUBJECT, RDF + 'type', null, { version: V })).map(SemanticOstrich.tripleToString));
-  console.timeEnd('svm');
+  console.log("| Query | Original | Reduced | Inferred |");
+  let timeOriginalTotal = 0;
+  let timeReducedTotal = 0;
+  let timeInferredTotal = 0;
+  for (const subject of SUBJECTS) {
+    const s = subject;
+    const p = RDF + 'type';
+    const o = null;
+    const opts = { version: V };
 
-  await store.close();
+    const timeOriginal = await time(async () => (await store1._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
+    const timeReduced = await time(async () => (await store2._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
+    const timeInferred = await time(async () => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, opts)).length);
+    console.log("| %s | %s | %s | %s |", subject, timeOriginal, timeReduced, timeInferred);
+
+    timeOriginalTotal += timeOriginal;
+    timeReducedTotal += timeReduced;
+    timeInferredTotal += timeInferred;
+  }
+  console.log("| %s | %s | %s | %s |", "AVERAGE", timeOriginalTotal / SUBJECTS.length, timeReducedTotal / SUBJECTS.length, timeInferredTotal / SUBJECTS.length);
+
+  store1.close();
+  store2.close();
 }
-run().catch(console.error);
 
 async function compareDatasets() {
   const store1 = new SemanticOstrich();
