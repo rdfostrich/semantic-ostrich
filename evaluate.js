@@ -97,7 +97,7 @@ async function run() {
 
   //await compareDatasets();
 
-  await evaluate();
+  await evaluateAll();
 }
 run().catch(console.error);
 
@@ -111,7 +111,33 @@ async function time(func) {
   return ((process.hrtime(start)[0] * 1000 + elapsed) / REPLICATIONS);// + " (" + ret + ")";
 }
 
-async function evaluate() {
+async function evaluateAll() {
+  console.log("## S-VM");
+  await evaluate(
+    async (store1, s, p, o) => (await store1._store.searchTriplesVersionMaterialized(s, p, o, { version: V })),
+    async (store2, s, p, o) => (await store2._store.searchTriplesVersionMaterialized(s, p, o, { version: V })),
+    async (store2, s, p, o) => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, { version: V }))
+  );
+  console.log();
+
+  console.log("## S-DM");
+  await evaluate(
+    async (store1, s, p, o) => (await store1._store.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
+    async (store2, s, p, o) => (await store2._store.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
+    async (store2, s, p, o) => (await store2.semanticSearchTriplesDeltaMaterialized(RULES, s, p, o, { versionStart: 0, versionEnd: V }))
+  );
+  console.log();
+
+  console.log("## S-VQ");
+  await evaluate(
+    async (store1, s, p, o) => (await store1._store.searchTriplesVersion(s, p, o)),
+    async (store2, s, p, o) => (await store2._store.searchTriplesVersion(s, p, o)),
+    async (store2, s, p, o) => (await store2.semanticSearchTriplesVersion(RULES, s, p, o))
+  );
+  console.log();
+}
+
+async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
   const store1 = new SemanticOstrich();
   await store1.init('./data/evalrun-bearb-day.ostrich', true);
 
@@ -132,7 +158,6 @@ async function evaluate() {
   console.log(typedResources.length);
   */
 
-  // TODO: also measure S-DM and S-VQ?
   console.log("| Query | Original | Reduced | Inferred | Inference queries | Inferred normalized |");
   let timeOriginalTotal = 0;
   let timeReducedTotal = 0;
@@ -143,11 +168,10 @@ async function evaluate() {
     const s = subject;
     const p = RDF + 'type';
     const o = null;
-    const opts = { version: V };
 
-    const timeOriginal = await time(async () => (await store1._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
-    const timeReduced = await time(async () => (await store2._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
-    const timeInferred = await time(async () => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, opts)).length);
+    const timeOriginal = await time(async () => (await queryerOriginal(store1, s, p, o)).length);
+    const timeReduced = await time(async () => (await queryerReduced(store2, s, p, o)).length);
+    const timeInferred = await time(async () => (await queryerInferred(store2, s, p, o)).length);
     const inferenceQueries = store2.lastQueryCount;
     const timeInferredNormalized = timeInferred / store2.lastQueryCount;
     console.log("| %s | %s | %s | %s | %s | %s |", subject, timeOriginal, timeReduced, timeInferred,
