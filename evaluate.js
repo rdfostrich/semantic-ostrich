@@ -80,7 +80,7 @@ const LEAF_CLASSES = Object.keys(SUBCLASSES).filter((clazz) => {
   return true;
 });
 
-const REPLICATIONS = 5;
+const REPLICATIONS = 20;
 const V = 88;
 const SUBJECTS = [
   'http://dbpedia.org/resource/Palazzo_Parisio_(Valletta)',
@@ -132,10 +132,13 @@ async function evaluate() {
   console.log(typedResources.length);
   */
 
-  console.log("| Query | Original | Reduced | Inferred |");
+  // TODO: also measure S-DM and S-VQ?
+  console.log("| Query | Original | Reduced | Inferred | Inference queries | Inferred normalized |");
   let timeOriginalTotal = 0;
   let timeReducedTotal = 0;
   let timeInferredTotal = 0;
+  let inferenceQueriesTotal = 0;
+  let timeInferredNormalizedTotal = 0;
   for (const subject of SUBJECTS) {
     const s = subject;
     const p = RDF + 'type';
@@ -145,13 +148,20 @@ async function evaluate() {
     const timeOriginal = await time(async () => (await store1._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
     const timeReduced = await time(async () => (await store2._store.searchTriplesVersionMaterialized(s, p, o, opts)).length);
     const timeInferred = await time(async () => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, opts)).length);
-    console.log("| %s | %s | %s | %s |", subject, timeOriginal, timeReduced, timeInferred);
+    const inferenceQueries = store2.lastQueryCount;
+    const timeInferredNormalized = timeInferred / store2.lastQueryCount;
+    console.log("| %s | %s | %s | %s | %s | %s |", subject, timeOriginal, timeReduced, timeInferred,
+      inferenceQueries, timeInferredNormalized);
 
     timeOriginalTotal += timeOriginal;
     timeReducedTotal += timeReduced;
     timeInferredTotal += timeInferred;
+    inferenceQueriesTotal += inferenceQueries;
+    timeInferredNormalizedTotal += timeInferredNormalized;
   }
-  console.log("| %s | %s | %s | %s |", "AVERAGE", timeOriginalTotal / SUBJECTS.length, timeReducedTotal / SUBJECTS.length, timeInferredTotal / SUBJECTS.length);
+  console.log("| %s | %s | %s | %s | %s | %s |", "AVERAGE", timeOriginalTotal / SUBJECTS.length,
+    timeReducedTotal / SUBJECTS.length, timeInferredTotal / SUBJECTS.length, inferenceQueriesTotal / SUBJECTS.length,
+    timeInferredNormalizedTotal / SUBJECTS.length);
 
   store1.close();
   store2.close();
