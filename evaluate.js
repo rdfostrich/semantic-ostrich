@@ -145,7 +145,7 @@ async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
   const store2 = new SemanticOstrich();
   await store2.init('./data/evalrun-bearb-day-data.ostrich', './data/evalrun-bearb-day-language.ostrich', true);
 
-  // 31805/48914 = 65,02% => 34,98% triple savings
+  // 31761/48914 = 64,93% => 35,07% triple savings (44 language triples)
 
   // Warmup
   for (let i = 0; i < 10; i++) {
