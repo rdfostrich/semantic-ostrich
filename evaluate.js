@@ -82,6 +82,7 @@ const LEAF_CLASSES = Object.keys(SUBCLASSES).filter((clazz) => {
 
 const REPLICATIONS = 20;
 const V = 88;
+const PRECISION = 2;
 const SUBJECTS = [
   'http://dbpedia.org/resource/Palazzo_Parisio_(Valletta)',
   'http://dbpedia.org/resource/Singaporean_general_election,_2015',
@@ -113,7 +114,7 @@ async function time(func) {
 }
 
 async function evaluateAll() {
-  console.log("## S-VM");
+  console.log("#### S-VM\n");
   await evaluate(
     async (store1, s, p, o) => (await store1._storeDataset.searchTriplesVersionMaterialized(s, p, o, { version: V })),
     async (store2, s, p, o) => (await store2._storeDataset.searchTriplesVersionMaterialized(s, p, o, { version: V })),
@@ -121,7 +122,7 @@ async function evaluateAll() {
   );
   console.log();
 
-  console.log("## S-DM");
+  console.log("#### S-DM\n");
   await evaluate(
     async (store1, s, p, o) => (await store1._storeDataset.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
     async (store2, s, p, o) => (await store2._storeDataset.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
@@ -129,7 +130,7 @@ async function evaluateAll() {
   );
   console.log();
 
-  console.log("## S-VQ");
+  console.log("#### S-VQ\n");
   await evaluate(
     async (store1, s, p, o) => (await store1._storeDataset.searchTriplesVersion(s, p, o)),
     async (store2, s, p, o) => (await store2._storeDataset.searchTriplesVersion(s, p, o)),
@@ -160,7 +161,8 @@ async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
   console.log(typedResources.length);
   */
 
-  console.log("| Query | Original | Reduced | Inferred | Inference queries | Inferred normalized |");
+  console.log("| **Query** | **Original** | **Reduced** | **Inferred** | **Inference queries** | **Inferred normalized** |");
+  console.log("| --------- | ------------ | ----------- | ------------ | --------------------- | ----------------------- |");
   let timeOriginalTotal = 0;
   let timeReducedTotal = 0;
   let timeInferredTotal = 0;
@@ -176,8 +178,9 @@ async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
     const timeInferred = await time(async () => (await queryerInferred(store2, s, p, o)).length);
     const inferenceQueries = store2.lastQueryCount;
     const timeInferredNormalized = timeInferred / store2.lastQueryCount;
-    console.log("| %s | %s | %s | %s | %s | %s |", subject, timeOriginal, timeReduced, timeInferred,
-      inferenceQueries, timeInferredNormalized);
+    console.log("| %s | %s | %s | %s | %s | %s |", unescape(subject.replace('http://dbpedia.org/resource/', 'dbr:')), timeOriginal.toFixed(PRECISION),
+      timeReduced.toFixed(PRECISION), timeInferred.toFixed(PRECISION), inferenceQueries,
+      timeInferredNormalized.toFixed(PRECISION));
 
     timeOriginalTotal += timeOriginal;
     timeReducedTotal += timeReduced;
@@ -185,9 +188,10 @@ async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
     inferenceQueriesTotal += inferenceQueries;
     timeInferredNormalizedTotal += timeInferredNormalized;
   }
-  console.log("| %s | %s | %s | %s | %s | %s |", "AVERAGE", timeOriginalTotal / SUBJECTS.length,
-    timeReducedTotal / SUBJECTS.length, timeInferredTotal / SUBJECTS.length, inferenceQueriesTotal / SUBJECTS.length,
-    timeInferredNormalizedTotal / SUBJECTS.length);
+  console.log("| _%s_ | _%s_ | _%s_ | _%s_ | _%s_ | _%s_ |", "Average", (timeOriginalTotal / SUBJECTS.length).toFixed(PRECISION),
+    (timeReducedTotal / SUBJECTS.length).toFixed(PRECISION), (timeInferredTotal / SUBJECTS.length).toFixed(PRECISION),
+    (inferenceQueriesTotal / SUBJECTS.length).toFixed(PRECISION),
+    (timeInferredNormalizedTotal / SUBJECTS.length).toFixed(PRECISION));
 
   store1.close();
   store2.close();
