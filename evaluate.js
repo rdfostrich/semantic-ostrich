@@ -101,6 +101,7 @@ async function run() {
 }
 run().catch(console.error);
 
+// Time in ms
 async function time(func) {
   const start = process.hrtime();
   let ret;
@@ -114,24 +115,24 @@ async function time(func) {
 async function evaluateAll() {
   console.log("## S-VM");
   await evaluate(
-    async (store1, s, p, o) => (await store1._store.searchTriplesVersionMaterialized(s, p, o, { version: V })),
-    async (store2, s, p, o) => (await store2._store.searchTriplesVersionMaterialized(s, p, o, { version: V })),
-    async (store2, s, p, o) => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, { version: V }))
+    async (store1, s, p, o) => (await store1._storeDataset.searchTriplesVersionMaterialized(s, p, o, { version: V })),
+    async (store2, s, p, o) => (await store2._storeDataset.searchTriplesVersionMaterialized(s, p, o, { version: V })),
+    async (store2, s, p, o) => (await store2.semanticSearchTriplesVersionMaterialized(RULES, s, p, o, { version: V }, { version: 0 }))
   );
   console.log();
 
   console.log("## S-DM");
   await evaluate(
-    async (store1, s, p, o) => (await store1._store.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
-    async (store2, s, p, o) => (await store2._store.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
-    async (store2, s, p, o) => (await store2.semanticSearchTriplesDeltaMaterialized(RULES, s, p, o, { versionStart: 0, versionEnd: V }))
+    async (store1, s, p, o) => (await store1._storeDataset.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
+    async (store2, s, p, o) => (await store2._storeDataset.searchTriplesDeltaMaterialized(s, p, o, { versionStart: 0, versionEnd: V })),
+    async (store2, s, p, o) => (await store2.semanticSearchTriplesDeltaMaterialized(RULES, s, p, o, { versionStart: 0, versionEnd: V }, { versionStart: -1, versionEnd: 0 }))
   );
   console.log();
 
   console.log("## S-VQ");
   await evaluate(
-    async (store1, s, p, o) => (await store1._store.searchTriplesVersion(s, p, o)),
-    async (store2, s, p, o) => (await store2._store.searchTriplesVersion(s, p, o)),
+    async (store1, s, p, o) => (await store1._storeDataset.searchTriplesVersion(s, p, o)),
+    async (store2, s, p, o) => (await store2._storeDataset.searchTriplesVersion(s, p, o)),
     async (store2, s, p, o) => (await store2.semanticSearchTriplesVersion(RULES, s, p, o))
   );
   console.log();
@@ -139,17 +140,18 @@ async function evaluateAll() {
 
 async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
   const store1 = new SemanticOstrich();
-  await store1.init('./data/evalrun-bearb-day.ostrich', true);
+  await store1.init('./data/evalrun-bearb-day.ostrich', null, true);
 
   const store2 = new SemanticOstrich();
-  await store2.init('./data/evalrun-bearb-day-typed.ostrich', true);
+  await store2.init('./data/evalrun-bearb-day-data.ostrich', './data/evalrun-bearb-day-language.ostrich', true);
 
   // 31805/48914 = 65,02% => 34,98% triple savings
 
   // Warmup
   for (let i = 0; i < 10; i++) {
-    await store1._store.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
-    await store2._store.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
+    await store1._storeDataset.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
+    await store2._storeDataset.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 10, limit: 10 });
+    await store2._storeLanguage.searchTriplesVersionMaterialized(null, RDF + 'type', null, { version: 0, limit: 10 });
   }
 
   // For when we want to query ALL typed subjects
@@ -193,21 +195,21 @@ async function evaluate(queryerOriginal, queryerReduced, queryerInferred) {
 
 async function compareDatasets() {
   const store1 = new SemanticOstrich();
-  await store1.init('./data/evalrun-bearb-day.ostrich', true);
+  await store1.init('./data/evalrun-bearb-day.ostrich', null, true);
 
   const store2 = new SemanticOstrich();
-  await store2.init('./data/evalrun-bearb-day-typed.ostrich', true);
+  await store2.init('./data/evalrun-bearb-day-data.ostrich', './data/evalrun-bearb-day-language.ostrich', true);
 
-  console.log("1: " + store1._store.maxVersion);
-  console.log("2: " + store2._store.maxVersion);
+  console.log("1: " + store1._storeDataset.maxVersion);
+  console.log("2: " + store2._storeDataset.maxVersion + "; " + store2._storeLanguage.maxVersion);
 
-  for (let i = 0; i <= store1._store.maxVersion; i++) {
-    const t1 = (await store1._store.searchTriplesDeltaMaterialized(null, null, null, { versionStart: i, versionEnd: i + 1 })).length;
-    const t2 = (await store2._store.searchTriplesDeltaMaterialized(null, null, null, { versionStart: i, versionEnd: i + 1 })).length;
+  for (let i = 0; i <= store1._storeDataset.maxVersion; i++) {
+    const t1 = (await store1._storeDataset.searchTriplesDeltaMaterialized(null, null, null, { versionStart: i, versionEnd: i + 1 })).length;
+    const t2 = (await store2._storeDataset.searchTriplesDeltaMaterialized(null, null, null, { versionStart: i, versionEnd: i + 1 })).length;
 
     console.log("V: " + i); // TODO
-      console.log(t1);
-      console.log(t2);
+    console.log(t1);
+    console.log(t2);
   }
 
   store1.close();
@@ -221,53 +223,57 @@ so our benchmark can infer these same inferences, without having to store them e
  */
 async function generateTypedDataset() {
   const store = new SemanticOstrich();
-  await store.init('./data/evalrun-bearb-day.ostrich', true);
+  await store.init('./data/evalrun-bearb-day.ostrich', null, true);
 
   const storeNew = new SemanticOstrich();
-  if (!fs.existsSync('./data/evalrun-bearb-day-typed.ostrich')) {
-    fs.mkdirSync('./data/evalrun-bearb-day-typed.ostrich');
+  if (!fs.existsSync('./data/evalrun-bearb-day-data.ostrich')) {
+    fs.mkdirSync('./data/evalrun-bearb-day-data.ostrich');
 
-    await storeNew.init('./data/evalrun-bearb-day-typed.ostrich');
+    await storeNew.init('./data/evalrun-bearb-day-data.ostrich', './data/evalrun-bearb-day-language.ostrich');
 
     const allTypes = {};
-    for (let version = 0; version <= store._store.maxVersion; version++) {
+    for (let version = 0; version <= store._storeDataset.maxVersion; version++) {
       console.log("Version: " + version);
-      let triples = [];
-
-      // Add subclass mappings in version 0.
-      if (version === 0) {
-        for (const sub of Object.keys(SUBCLASSES)) {
-          const sup = SUBCLASSES[sub];
-          triples.push({ subject: sub, predicate: RDFS + 'subClassOf', object: sup, addition: true });
-        }
-      }
+      let triplesDataset = [];
+      let triplesLanguage = [];
 
       // Retrieve original triples
       let triplesNew;
       if (version === 0) {
-        triplesNew = (await store._store.searchTriplesVersionMaterialized(null, null, null, { version: version }))
+        triplesNew = (await store._storeDataset.searchTriplesVersionMaterialized(null, null, null, { version: version }))
           .map((triple) => {
             triple.addition = true;
             return triple;
           });
       } else {
-        triplesNew = (await store._store.searchTriplesDeltaMaterialized(null, null, null,
+        triplesNew = (await store._storeDataset.searchTriplesDeltaMaterialized(null, null, null,
           { versionStart: version - 1, versionEnd: version }));
       }
 
       // Filter triples away that can be inferred
       const total = triplesNew.length;
-      triples = triples.concat(triplesNew
+      triplesDataset = triplesNew
         .filter((triple) => {
           if (triple.predicate === RDF + 'type') {
             allTypes[triple.object] = true;
             return LEAF_CLASSES.indexOf(triple.object) >= 0;
           }
           return true;
-        }));
+        });
 
-      const added = await storeNew._store.append(version, triples);
-      console.log("Added " + added + " / " + total + " to version " + version);
+      const addedDataset = await storeNew._storeDataset.append(version, triplesDataset);
+      console.log("Added " + addedDataset + " / " + total + " dataset triples to version " + version);
+
+      // Add subclass mappings in version 0.
+      if (version === 0) {
+        for (const sub of Object.keys(SUBCLASSES)) {
+          const sup = SUBCLASSES[sub];
+          triplesLanguage.push({ subject: sub, predicate: RDFS + 'subClassOf', object: sup, addition: true });
+        }
+
+        const addedLanguage = await storeNew._storeLanguage.append(version, triplesLanguage);
+        console.log("Added " + addedLanguage + " language triples to version " + version);
+      }
     }
 
     console.log("All types:");

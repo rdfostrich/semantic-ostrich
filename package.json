@@ -6,7 +6,7 @@
   "license": "MIT",
   "dependencies": {
     "lodash": "^4.17.4",
-    "ostrich-bindings": "^1.0.0"
+    "ostrich-bindings": "^1.2.2"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
