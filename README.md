@@ -29,6 +29,25 @@ For example, a rules file could contain this:
 
 For more information on the command line tool, call `semantic-ostrich --help`.
 
+## Use in an application
+
+```javascript
+// Initialize
+const SemanticOstrich = require('semantic-ostrich');
+ostrichStore = new SemanticOstrich();
+await ostrichStore.init('path/to/datastore.ostrich', 'path/to/languagestore.ostrich', true); // The last parameter sets it to the more performant readonly mode
+const rules = SemanticOstrich.readRules('path/to/rules.n3');
+
+// Query one version
+const subject = 'http://dbpedia.org/resource/Doctor_Who_(series_9)';
+const predicate = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const object = null; // variable
+triples = await ostrichStore.semanticSearchTriplesVersionMaterialized(rules, subject, predicate, object, { version: 88 }, { version: 0 });
+```
+
+See [`bin/semantic-ostrich`](https://github.com/rdfostrich/semantic-ostrich/blob/master/bin/semantic-ostrich)
+for a more extensive example of the usage of [`SemanticOstrich`](https://github.com/rdfostrich/semantic-ostrich/blob/master/lib/SemanticOstrich.js).
+
 ## License
 This software is written by [Ruben Taelman](http://rubensworks.net/).
 

@@ -39,7 +39,7 @@ if (args._.length !== 3 || args.h || args.help || !query) {
   process.exit(1);
 }
 
-var SemanticOstrich = require('../dist/SemanticOstrich.js').SemanticOstrich,
+var SemanticOstrich = require('../index.js'),
     N3 = require('n3');
 
 // Prepare the query and the result writer
