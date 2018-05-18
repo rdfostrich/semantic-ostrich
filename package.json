@@ -16,6 +16,11 @@
   "bin": {
     "semantic-ostrich": "bin/semantic-ostrich"
   },
+  "files": [
+    "bin/*",
+    "dist/*",
+    "index.js"
+  ],
   "dependencies": {
     "babel-polyfill": "^6.26.0",
     "lodash": "^4.17.4",
