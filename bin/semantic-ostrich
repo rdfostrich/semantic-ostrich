@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+require("babel-polyfill");
+
+// Parse command-line arguments
+var args = require('minimist')(process.argv.slice(2), { alias:
+    {
+      queryversionmaterialized: 'qvm',
+      querydeltamaterialized: 'qdm',
+      queryversion: 'qv',
+      format: 'f',
+      versionData: 'vd',
+      versionLanguage: 'vl',
+      versionStartData: 'vsd',
+      versionEndData: 'ved',
+      versionStartLanguage: 'vsl',
+      versionEndLanguage: 'vel'
+    },
+  }),
+  pathDataset = args._[0],
+  pathLanguage = args._[1],
+  pathRules = args._[2],
+  queryvm  = typeof args.queryversionmaterialized  === 'string' ? args.queryversionmaterialized  : '',
+  querydm  = typeof args.querydeltamaterialized  === 'string' ? args.querydeltamaterialized  : '',
+  queryv  = typeof args.queryversion  === 'string' ? args.queryversion  : '',
+  query  = queryvm || querydm || queryv,
+  format = typeof args.format === 'string' ? args.format : 'text/turtle',
+  versionData = /^\d+$/.test(args.versionData) ? args.versionData  : null,
+  versionLanguage = /^\d+$/.test(args.versionLanguage) ? args.versionLanguage  : null,
+  versionStartData = /^\d+$/.test(args.versionStartData) ? args.versionStartData  : null,
+  versionEndData = /^\d+$/.test(args.versionEndData) ? args.versionEndData  : null,
+  versionStartLanguage = /^\d+$/.test(args.versionStartLanguage) ? args.versionStartLanguage  : null,
+  versionEndLanguage = /^\d+$/.test(args.versionEndLanguage) ? args.versionEndLanguage  : null;
+
+// Verify the arguments
+if (args._.length !== 3 || args.h || args.help || !query) {
+  console.error("usage: semantic-ostrich data.ostrich language.ostrich rules.n3 --queryversionmaterialized '?s ?p ?o' --versionData 1 --versionLanguage 0 --format turtle");
+  console.error("usage: semantic-ostrich data.ostrich language.ostrich rules.n3 --querydeltamaterialized '?s ?p ?o' --versionStartData 0 --versionEndData 2 --versionStartLanguage 0 --versionEndLanguage 2 --format turtle");
+  console.error("usage: semantic-ostrich data.ostrich language.ostrich rules.n3 --queryversion '?s ?p ?o' --format turtle");
+  process.exit(1);
+}
+
+var SemanticOstrich = require('../dist/SemanticOstrich.js').SemanticOstrich,
+    N3 = require('n3');
+
+// Prepare the query and the result writer
+var parts = /^\s*<?([^\s>]*)>?\s*<?([^\s>]*)>?\s*<?([^]*?)>?\s*$/.exec(query),
+    subject   = parts[1][0] !== '?' && parts[1] || null,
+    predicate = parts[2][0] !== '?' && parts[2] || null,
+    object    = parts[3][0] !== '?' && parts[3] || null;
+var writer = new N3.Writer(process.stdout, { format: format, end: false });
+
+// Prepare rules
+const rules = SemanticOstrich.readRules(pathRules);
+
+// Load Ostrich
+const ostrichStore = new SemanticOstrich();
+ostrichStore.init(pathDataset, pathLanguage, true).then(async () => {
+  // Search the Ostrich store for the given pattern and query type
+  let triples;
+  if (queryvm) {
+    triples = await ostrichStore.semanticSearchTriplesVersionMaterialized(rules, subject, predicate, object,
+      { version: versionData }, { version: versionLanguage });
+  }
+  else if (querydm) {
+    triples = await ostrichStore.semanticSearchTriplesDeltaMaterialized(rules, subject, predicate, object,
+      { versionStart: versionStartData, versionEnd: versionEndData },
+      { versionStart: versionStartLanguage, versionEnd: versionEndLanguage });
+  }
+  else if (queryv) {
+    triples = await ostrichStore.semanticSearchTriplesVersion(rules, subject, predicate, object);
+  }
+  triples.forEach(function (triple) {
+    if (querydm) {
+      writer._write(triple.addition ? '+ ' : '- ');
+    }
+    writer._writeTripleLine(triple.subject, triple.predicate, triple.object);
+    if (queryv) {
+      writer._write('    >> ' + JSON.stringify(triple.versions) + '\n');
+    }
+  });
+  writer.end();
+  ostrichStore.close();
+});

@@ -4,13 +4,23 @@
   "main": "index.js",
   "author": "Ruben Taelman <ruben.taelman@ugent.be>",
   "license": "MIT",
+  "bin": {
+    "semantic-ostrich": "bin/semantic-ostrich"
+  },
   "dependencies": {
+    "babel-polyfill": "^6.26.0",
     "lodash": "^4.17.4",
-    "ostrich-bindings": "^1.2.2"
+    "minimist": "^1.2.0",
+    "n3": "^0.11.3",
+    "n3-parser.js": "^0.1.1",
+    "ostrich-bindings": "^1.2.3"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
-    "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.6.1"
+  },
+  "scripts": {
+    "build": "babel lib/SemanticOstrich.js -o dist/SemanticOstrich.js",
+    "prepare": "npm run build"
   }
 }
