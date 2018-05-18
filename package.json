@@ -35,6 +35,7 @@
   },
   "scripts": {
     "build": "babel lib/SemanticOstrich.js -o dist/SemanticOstrich.js",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "test": "exit 0"
   }
 }
