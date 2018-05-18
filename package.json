@@ -1,9 +1,18 @@
 {
-  "name": "poc-semantic-versioning",
+  "name": "semantic-ostrich",
+  "description": "prototypical implementation for semantic versioned querying on top of OSTRICH stores",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdfostrich/semantic-ostrich.git"
+  },
   "version": "1.0.0",
   "main": "index.js",
   "author": "Ruben Taelman <ruben.taelman@ugent.be>",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rdfostrich/semantic-ostrich"
+  },
+  "homepage": "https://github.com/rdfostrich/semantic-ostrich#readme",
   "bin": {
     "semantic-ostrich": "bin/semantic-ostrich"
   },
