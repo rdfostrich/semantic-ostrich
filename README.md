@@ -1,6 +1,6 @@
 # Semantic OSTRICH
 [![Build Status](https://travis-ci.org/rdfostrich/semantic-ostrich.svg?branch=master)](https://travis-ci.org/rdfostrich/semantic-ostrich)
-[![npm version](https://badge.fury.io/js/semantic-ostrich.svg)](https://www.npmjs.com/package/semantic-ostrich)
+[![npm version](https://badge.fury.io/js/semantic-ostrich.svg)](https://www.npmjs.com/package/semantic-ostrich) [![Greenkeeper badge](https://badges.greenkeeper.io/rdfostrich/semantic-ostrich.svg)](https://greenkeeper.io/)
 
 This is a prototypical proof-of-concept implementation for semantic versioned querying.
 It is implemented on top of the versioned triple store, [OSTRICH](https://github.com/rdfostrich/ostrich/).
