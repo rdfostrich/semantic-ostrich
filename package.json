@@ -5,7 +5,7 @@
     "type": "git",
     "url": "git+https://github.com/rdfostrich/semantic-ostrich.git"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "author": "Ruben Taelman <ruben.taelman@ugent.be>",
   "license": "MIT",
