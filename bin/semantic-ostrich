@@ -40,7 +40,8 @@ if (args._.length !== 3 || args.h || args.help || !query) {
 }
 
 var SemanticOstrich = require('../index.js'),
-    N3 = require('n3');
+    N3 = require('n3'),
+    RDFString = require('rdf-string');
 
 // Prepare the query and the result writer
 var parts = /^\s*<?([^\s>]*)>?\s*<?([^\s>]*)>?\s*<?([^]*?)>?\s*$/.exec(query),
@@ -73,7 +74,7 @@ ostrichStore.init(pathDataset, pathLanguage, true).then(async () => {
     if (querydm) {
       writer._write(triple.addition ? '+ ' : '- ');
     }
-    writer._writeTripleLine(triple.subject, triple.predicate, triple.object);
+    writer._writeQuadLine(RDFString.stringToTerm(triple.subject), RDFString.stringToTerm(triple.predicate), RDFString.stringToTerm(triple.object));
     if (queryv) {
       writer._write('    >> ' + JSON.stringify(triple.versions) + '\n');
     }
