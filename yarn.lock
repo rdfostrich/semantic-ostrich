@@ -1682,10 +1682,10 @@ n3@^0.9.1:
   resolved "https://registry.yarnpkg.com/n3/-/n3-0.9.1.tgz#430b547d58dc7381408c45784dd8058171903932"
   integrity sha1-QwtUfVjcc4FAjEV4TdgFgXGQOTI=
 
-n3@^1.0.0:
-  version "1.0.0"
-  resolved "https://registry.yarnpkg.com/n3/-/n3-1.0.0.tgz#b050c4488cb25f6d1c636fdaafdeda7c788495ac"
-  integrity sha512-wQ8k+mJxvaSwfdspoF/06xm1u9pGtfRdtGdeeKrQoNslSnStMpdgDw0IElmf1M46l3WAi34ZTcTDR5TsjrnPRQ==
+n3@^1.3.5:
+  version "1.3.5"
+  resolved "https://registry.yarnpkg.com/n3/-/n3-1.3.5.tgz#ea00062b64fef71dc3a92befc00413a733ef1029"
+  integrity sha512-McWb1tCWGGAmHeGEakqZj/UqxQR9cpEYZ/JivBj59YfiOAuaIWZxu0B+jnhbCwCZ2AsxdgQ5Dq8fehIJpYQaMQ==
 
 nan@^2.5.1, nan@^2.9.2:
   version "2.10.0"
