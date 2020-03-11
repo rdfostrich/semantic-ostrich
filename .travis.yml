@@ -5,17 +5,19 @@ node_js:
  - "10"
 env:
   global:
-    - CC=clang-3.7
-    - CXX=clang++-3.7
+    - CC=clang
+    - CXX=clang++
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise-3.7
+      - llvm-toolchain-precise
     packages:
-      - clang-3.7
+      - clang
       - cmake-data
       - cmake
+      - gcc-4.9
+      - g++-4.9
 before_install:
   # Install CMake
   - curl -sSL https://cmake.org/files/v3.5/cmake-3.5.2-Linux-x86_64.tar.gz | tar -xzC /opt
